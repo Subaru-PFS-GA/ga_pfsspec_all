@@ -13,3 +13,6 @@
 [submodule "modules/pfsspec-survey"]
 	path = modules/pfsspec-survey
 	url = git@github.com:dobos/pfsspec-survey.git
+[submodule "modules/pfsspec-config"]
+	path = modules/pfsspec-config
+	url = git@github.com:dobos/pfsspec-config.git
