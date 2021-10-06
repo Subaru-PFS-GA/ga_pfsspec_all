@@ -1,0 +1,15 @@
+[submodule "modules/pfsspec-core"]
+	path = modules/pfsspec-core
+	url = git@github.com:dobos/pfsspec-core.git
+[submodule "modules/pfsspec-learn"]
+	path = modules/pfsspec-learn
+	url = git@github.com:dobos/pfsspec-learn.git
+[submodule "modules/pfsspec-sim"]
+	path = modules/pfsspec-sim
+	url = git@github.com:dobos/pfsspec-sim.git
+[submodule "modules/pfsspec-stellar"]
+	path = modules/pfsspec-stellar
+	url = git@github.com:dobos/pfsspec-stellar.git
+[submodule "modules/pfsspec-survey"]
+	path = modules/pfsspec-survey
+	url = git@github.com:dobos/pfsspec-survey.git
