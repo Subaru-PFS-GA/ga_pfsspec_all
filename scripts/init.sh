@@ -18,19 +18,28 @@ function link_module() {
 
     if [[ ! -L pfsspec/$dir ]]; then
         echo "Creating symlink to module $mod, directory $dir"
-        ln -s modules/pfsspec-$mod/pfsspec/$dir pfsspec/$dir
+        ln -s ../modules/pfsspec-$mod/pfsspec/$dir pfsspec/$dir
+    fi
+
+    if [[ ! -L test/$dir ]]; then
+      echo "Creating symlink to tests for module $mod, directory $dir"
+        ln -s ../modules/pfsspec-$mod/test/$dir test/$dir
     fi
 }
 
 if [[ ! -d pfsspec ]]; then
+    echo "Creating directory for modules."
     mkdir -p pfsspec
+fi
+
+if [[ ! -d test ]]; then
+    echo "Creating directory for unit tests."
+    mkdir -p test
 fi
 
 link_module core core
 link_module stellar stellar
 # TODO: add modules
-
-return
 
 # Parse arguments
 
@@ -89,7 +98,7 @@ function is_ssh_agent_running() {
 }
 
 function check_ssh_key() {
-  ssh-add -l | grep $1 1> /dev/null 2> /dev/null
+  ssh-add -l 2> /dev/null | grep $1 1> /dev/null
 }
 
 # Initialize SSH key for github access, if requested
