@@ -39,7 +39,9 @@ fi
 
 link_module core core
 link_module stellar stellar
-# TODO: add modules
+link_module survey survey
+link_module sim sim
+link_module learn learn
 
 # Parse arguments
 
