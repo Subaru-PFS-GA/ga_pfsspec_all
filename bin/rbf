@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -o noglob
+./bin/run "-m pfsspec.core.scripts.rbf" $@
+set +o noglob
