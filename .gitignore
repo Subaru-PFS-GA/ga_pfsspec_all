@@ -1,4 +1,5 @@
 slurm*
+*.out
 tmp
 
 # Ignore all submodule symlinks
