@@ -1,6 +1,7 @@
 slurm*
 *.out
 tmp
+.bash_history*
 
 # Ignore all submodule symlinks
 configs/
