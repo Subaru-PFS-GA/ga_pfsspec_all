@@ -2,7 +2,11 @@
 
 # Check out all submodules to the same branch
 
-branch=$1
+if [[ -z $1 ]]; then
+  branch=$(git rev-parse --abbrev-ref HEAD)
+else
+  branch=$1
+fi
 
 function list_submodules() {
   git submodule foreach --recursive --quiet 'echo $sm_path'
