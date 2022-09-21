@@ -43,13 +43,18 @@ done
 
 if [[ ! -L configs ]]; then
     echo "Creating symlink to configurations"
-    ln -s modules/pfsspec-config/configs configs
+    ln -s modules/config/configs configs
 fi
 
 # Source environment configs
 
-echo "Sourcing environment file $PFSSPEC_ENV"
-source "./configs/envs/$PFSSPEC_ENV.sh"
+if [[ -f "./configs/envs/$PFSSPEC_ENV.sh" ]]; then
+    echo "Sourcing environment file $PFSSPEC_ENV"
+    source "./configs/envs/$PFSSPEC_ENV.sh"
+else
+    ech "Environment file for $PFSSPEC_ENV not found. "
+    exit 1
+fi
 
 echo "Activating conda environment $PFSSPEC_CONDAENV"
 source "$PFSSPEC_CONDAPATH/bin/activate" "$PFSSPEC_CONDAENV"
@@ -61,12 +66,12 @@ function init_git_module() {
     dir="$2"
 
     echo "Configuring git for repo $mod"
-    pushd "modules/pfsspec-$dir" >/dev/null
+    pushd "modules/$dir" >/dev/null
 
     # Configure git filter to remove notebook output
     # It requires a .gitattributes file under each submodule with contents:
     # `nb/**/*.ipynb filter=ipynb_stripout`
-    git config --local filter.ipynb_stripout.clean "$(which python) $(git rev-parse --show-toplevel)/bin/ipynb_stripout"
+    git config --local filter.ipynb_stripout.clean "$(which python) $(git rev-parse --show-toplevel)/../../bin/ipynb_stripout"
     git config --local filter.ipynb_stripout.smudge cat
     git config --local filter.ipynb_stripout.required true
 
@@ -79,27 +84,27 @@ function link_module() {
 
     if [[ ! -L python/pfs/ga/pfsspec/$dir ]]; then
         echo "Creating symlink to module $mod, directory $dir"
-        ln -s ../../../../modules/pfsspec-$mod/python/pfs/ga/pfsspec/$dir python/pfs/ga/pfsspec/$dir
+        ln -s ../../../../modules/$mod/python/pfs/ga/pfsspec/$dir python/pfs/ga/pfsspec/$dir
     fi
 
     if [[ ! -L python/test/$dir ]]; then
       echo "Creating symlink to tests for module $mod, directory $dir"
-        ln -s ../../modules/pfsspec-$mod/python/test/$dir python/test/$dir
+        ln -s ../../modules/$mod/python/test/$dir python/test/$dir
     fi
 
     if [[ ! -L scripts/$dir ]]; then
       echo "Creating symlink to scripts for module $mod, directory $dir"
-        ln -s ../modules/pfsspec-$mod/scripts scripts/$dir
+        ln -s ../modules/$mod/scripts scripts/$dir
     fi
 
     if [[ ! -L nb/$dir ]]; then
       echo "Creating symlink to notebooks for module $mod, directory $dir"
-        ln -s ../modules/pfsspec-$mod/nb nb/$dir
+        ln -s ../modules/$mod/nb nb/$dir
     fi
 
     if [[ ! -L docs/$dir ]]; then
       echo "Creating symlink to docs for module $mod, directory $dir"
-        ln -s ../modules/pfsspec-$mod/docs docs/$dir
+        ln -s ../modules/$mod/docs docs/$dir
     fi
 
     init_git_module "$mod" "$dir"
@@ -183,6 +188,19 @@ export TF_CPP_MIN_LOG_LEVEL=3
 # export OMP_NUM_THREADS=12
 
 ################################################################################
+
+# Generate .env file for vscode python debugging
+cat > .env <<EOF
+CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES"
+
+PYTHONPATH="$PYTHONPATH"
+
+PFSSPEC_ROOT="$PFSSPEC_ROOT"
+PFSSPEC_DATA="$PFSSPEC_DATA"
+PFSSPEC_TEST="$PFSSPEC_TEST"
+
+PYSYN_CDBS="$PYSYN_CDBS"
+EOF
 
 # Write bash history to project root
 export HISTFILE="$PFSSPEC_ROOT/.bash_history.$$"

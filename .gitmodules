@@ -1,0 +1,18 @@
+[submodule "modules/survey"]
+	path = modules/survey
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_survey.git
+[submodule "modules/config"]
+	path = modules/config
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_config.git
+[submodule "modules/core"]
+	path = modules/core
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_core.git
+[submodule "modules/learn"]
+	path = modules/learn
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_learn.git
+[submodule "modules/sim"]
+	path = modules/sim
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_sim.git
+[submodule "modules/stellar"]
+	path = modules/stellar
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_stellar.git
