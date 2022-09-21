@@ -5,8 +5,7 @@ tmp
 
 # Ignore all submodule symlinks
 configs/
-pfsspec/
-test/
+python/
 docs/
 nb/
 scripts/

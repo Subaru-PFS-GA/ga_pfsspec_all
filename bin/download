@@ -1,3 +1,1 @@
-#!/bin/bash
-
-./bin/run "-m pfs.ga.pfsspec.core.scripts.download" $@
+../modules/pfsspec-core/bin/download

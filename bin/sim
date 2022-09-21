@@ -1,5 +1,1 @@
-#!/bin/bash
-
-set -o noglob
-./bin/run "-m pfs.ga.pfsspec.sim.scripts.sim" $@
-set +o noglob
+../modules/pfsspec-sim/bin/sim
