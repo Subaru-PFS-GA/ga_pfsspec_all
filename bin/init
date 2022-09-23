@@ -87,9 +87,9 @@ function link_module() {
         ln -s ../../../../modules/$mod/python/pfs/ga/pfsspec/$dir python/pfs/ga/pfsspec/$dir
     fi
 
-    if [[ ! -L python/test/$dir ]]; then
+    if [[ ! -L python/test/pfs/ga/pfsspec/$dir ]]; then
       echo "Creating symlink to tests for module $mod, directory $dir"
-        ln -s ../../modules/$mod/python/test/$dir python/test/$dir
+        ln -s ../../../../../modules/$mod/python/test/$dir python/test/pfs/ga/pfsspec/$dir
     fi
 
     if [[ ! -L scripts/$dir ]]; then
