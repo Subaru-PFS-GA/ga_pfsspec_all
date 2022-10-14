@@ -68,6 +68,10 @@ function init_git_module() {
     echo "Configuring git for repo $mod"
     pushd "modules/$dir" >/dev/null
 
+    # Default merge strategy
+    git config --unset pull.ff
+    git config pull.rebase false
+
     # Configure git filter to remove notebook output
     # It requires a .gitattributes file under each submodule with contents:
     # `nb/**/*.ipynb filter=ipynb_stripout`
@@ -115,6 +119,7 @@ link_module stellar stellar
 link_module survey survey
 link_module sim sim
 link_module learn learn
+link_module ws ws
 
 ######## GIT/SSH config ########################################################
 
@@ -169,9 +174,6 @@ fi
 
 ################################################################################
 
-# PFS related settings
-export PYTHONPATH=./python:../pysynphot:../SciScript-Python/py3
-
 # Other settings
 
 # Work around issues with saving weights when running on multiple threads
@@ -193,7 +195,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 cat > .env <<EOF
 CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES"
 
-PYTHONPATH="$PYTHONPATH"
+PYTHONPATH="./test:./python:$PYTHONPATH"
 
 PFSSPEC_ROOT="$PFSSPEC_ROOT"
 PFSSPEC_DATA="$PFSSPEC_DATA"

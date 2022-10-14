@@ -16,3 +16,6 @@
 [submodule "modules/stellar"]
 	path = modules/stellar
 	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_stellar.git
+[submodule "modules/ws"]
+	path = modules/ws
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_ws.git
