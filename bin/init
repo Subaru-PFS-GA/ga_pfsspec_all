@@ -191,11 +191,13 @@ export TF_CPP_MIN_LOG_LEVEL=3
 
 ################################################################################
 
+export PYTHONPATH="./test:./python:$PYTHONPATH"
+
 # Generate .env file for vscode python debugging
 cat > .env <<EOF
 CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES"
 
-PYTHONPATH="./test:./python:$PYTHONPATH"
+PYTHONPATH="$PYTHONPATH"
 
 PFSSPEC_ROOT="$PFSSPEC_ROOT"
 PFSSPEC_DATA="$PFSSPEC_DATA"
