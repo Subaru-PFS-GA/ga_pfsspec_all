@@ -120,6 +120,7 @@ link_module survey survey
 link_module sim sim
 link_module learn learn
 link_module ws ws
+link_module wsclient wsclient
 
 ######## GIT/SSH config ########################################################
 
