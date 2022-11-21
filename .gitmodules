@@ -19,3 +19,6 @@
 [submodule "modules/ws"]
 	path = modules/ws
 	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_ws.git
+[submodule "modules/wsclient"]
+	path = modules/wsclient
+	url = git@github.com:Subaru-PFS-GA/ga_pfsspec_wsclient.git
