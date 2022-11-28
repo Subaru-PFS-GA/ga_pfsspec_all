@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+function build_module() {
+    mod="$1"
+    dir="$2"
+
+    echo "Generating setup.py for module $mod"
+    sed "s/%%version%%/0.2.0/g" ./assets/build/_version.py > ./modules/$dir/python/pfs/ga/pfsspec/$mod/_version.py
+    sed "s/%%submodule%%/$mod/g" ./assets/build/setup.py > ./modules/$dir/setup.py
+
+    echo "Building module $mod"
+    pushd "modules/$dir" >/dev/null
+
+    python setup.py -v build
+
+    popd >/dev/null
+}
+
+build_module core core
+build_module learn learn
+build_module sim sim
+build_module stellar stellar
+build_module survey survey
+
+
