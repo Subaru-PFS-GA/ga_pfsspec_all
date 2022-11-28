@@ -31,7 +31,11 @@ with open("README.md", encoding="utf-8") as f:
 packages = find_packages(
     where=PACKAGE_ROOT,
     exclude=[
-        "test"
+        "test",
+        # Exclude packages that will be covered by PEP420 or nspkg
+        "pfs",
+        "pfs.ga",
+        "pfs.ga.pfsspec",
     ]
 )
 
