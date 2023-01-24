@@ -6,11 +6,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     exit
 fi
 
-echo "Sourcing .bashrc"
-source ~/.bashrc
+if [[ -f "~/.bashrc" ]]; then
+    echo "Sourcing .bashrc"
+    source ~/.bashrc
+fi
 
 # Parse arguments
 
+PARAMS=""
 PFSSPEC_ENV="default"
 INIT_GIT_KEY="0"
 
@@ -217,4 +220,3 @@ echo "Configured environment for PFS development."
 echo "Data directory is $PFSSPEC_DATA"
 
 pushd . > /dev/null
-

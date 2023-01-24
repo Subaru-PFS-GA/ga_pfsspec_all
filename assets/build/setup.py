@@ -90,7 +90,7 @@ setup(
         "astropy>=4.0,<5.0",
         "specutils>=1.0,<2.0",
         "pysynphot>=1.0.0,<2.0.0",
-        "nbparameterise~=0.3",
+        "nbparameterise>=0.3,<1.0",
         "geopandas",
         # "alphashape>=1.1.0,<2.0.0",
         # "tensorflow"
