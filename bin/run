@@ -3,7 +3,7 @@
 # Work around issues with saving weights when running on multiple threads
 export HDF5_USE_FILE_LOCKING=FALSE
 
-PARAMS=""
+PARAMS=()
 COMMAND="$1"
 shift
 
@@ -68,8 +68,8 @@ while (( "$#" )); do
             #  echo "Error: Unsupported flag $1" >&2
             #  exit 1
             #  ;;
-        *) # preserve all other arguments
-            PARAMS="$PARAMS $1"
+        *) # preserve all other arguments with quotes
+            PARAMS+=("$1")
             shift
             ;;
     esac
@@ -78,21 +78,21 @@ done
 if [[ $PYTHON_DEBUG == "1" ]]; then
     #DEBUGGER="-m ptvsd --host localhost --port 5678 --wait"
     DEBUGGER="-m debugpy --listen 0.0.0.0:5683 --wait-for-client --configure-subProcess True"
-    PARAMS="$PARAMS --debug"
+    PARAMS+=("--debug")
 else
     DEBUGGER=""
 fi
 
 set -o noglob
 if [[ $RUNMODE == "run" ]]; then
-    exec python $DEBUGGER $COMMAND $PARAMS
+    exec python $DEBUGGER $COMMAND "${PARAMS[@]}"
 elif [[ $RUNMODE == "srun" ]]; then
     exec srun --partition $SBATCH_PARTITION \
               --gres gpu:$SBATCH_GPUS \
               --cpus-per-task $SBATCH_CPUS_PER_TASK \
               --mem $SBATCH_MEM \
               --time $SBATCH_TIME \
-              python $DEBUGGER $COMMAND $PARAMS
+              python $DEBUGGER $COMMAND "${PARAMS[@]}"
 elif [[ $RUNMODE == "sbatch" ]]; then
     sbatch --parsable $SBATCH_DEPENDENCY <<EOF
 #!/bin/bash
@@ -109,7 +109,7 @@ export OMP_NUM_THREADS=8
 set -e
 
 out=slurm-\$SLURM_JOB_ID.out
-srun python $COMMAND $PARAMS
+srun python $COMMAND "${PARAMS[@]}"
 outdir=\$(cat \$out | grep -Po 'Output directory is (\K.+)')
 mv \$out \$outdir/slurm.out
 EOF
