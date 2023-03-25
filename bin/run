@@ -109,7 +109,7 @@ export OMP_NUM_THREADS=8
 set -e
 
 out=slurm-\$SLURM_JOB_ID.out
-srun python $COMMAND "${PARAMS[@]}"
+srun python $COMMAND $(printf "\"%s\" " "${PARAMS[@]}")
 outdir=\$(cat \$out | grep -Po 'Output directory is (\K.+)')
 mv \$out \$outdir/slurm.out
 EOF
