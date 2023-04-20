@@ -84,6 +84,9 @@ fi
 
 set -o noglob
 if [[ $RUNMODE == "run" ]]; then
+    if [[ $PYTHON_DEBUG == "1" ]]; then
+        echo "Press F5 to start debugging..."
+    fi
     exec python $DEBUGGER $COMMAND "${PARAMS[@]}"
 elif [[ $RUNMODE == "srun" ]]; then
     exec srun --partition $SBATCH_PARTITION \
