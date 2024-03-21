@@ -195,7 +195,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 
 ################################################################################
 
-export PYTHONPATH="./test:./python:$PYTHONPATH"
+export PYTHONPATH="$PFSSPEC_ROOT/test:$PFSSPEC_ROOT/python:$PYTHONPATH"
 
 # Generate .env file for vscode python debugging
 cat > .env <<EOF
