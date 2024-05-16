@@ -85,7 +85,7 @@ fi
 set -o noglob
 if [[ $RUNMODE == "run" ]]; then
     if [[ $PYTHON_DEBUG == "1" ]]; then
-        echo "Press F5 to start debugging..."
+        echo "Press F5 to start debugging on port $PFSSPEC_DEBUGPORT"
     fi
     exec python $DEBUGGER $COMMAND "${PARAMS[@]}"
 elif [[ $RUNMODE == "srun" ]]; then

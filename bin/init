@@ -199,6 +199,8 @@ export PYTHONPATH="$PFSSPEC_ROOT/test:$PFSSPEC_ROOT/python:$PYTHONPATH"
 
 # Generate .env file for vscode python debugging
 cat > .env <<EOF
+DISPLAY="$DISPLAY"
+
 CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES"
 
 PYTHONPATH="$PYTHONPATH"
