@@ -1,0 +1,36 @@
+package:
+    name: pfsspec-%%submodule%%
+    version: %%version%%
+
+source:
+  fn: pfsspec-%%submodule%%-%%version%%.tar.gz
+  url: https://pypi.python.org/packages/source/t/toolz/toolz-0.6.0.tar.gz
+  md5: 779bd5844a223c9f0be7e7ea03cc02b1
+
+build:
+    noarch: python
+    number: %%build%%
+    script: python -m pip install --no-deps --ignore-installed .
+    entry_points:
+%%console_scripts_yaml%%
+
+requirements:
+    build:
+        - python >=3.7
+        - setuptools >=65.0.2
+        - setuptools_scm[toml]>=4
+        - pip >=22.0
+
+    run:
+%%requirements_yaml%%
+
+test:
+    imports:
+        - toolz
+
+    #commands:
+    #    -
+
+about:
+    home: %%package_url%%
+    license: NO LICENSE - DO NOT DISTRIBUTE
