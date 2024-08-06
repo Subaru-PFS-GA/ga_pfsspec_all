@@ -1,9 +1,9 @@
 package:
-    name: pfsspec-%%submodule%%
+    name: %%package_name%%
     version: %%version%%
 
 source:
-  fn: pfsspec-%%submodule%%-%%version%%.tar.gz
+  fn: %%package_name%%-%%version%%.tar.gz
   url: https://pypi.python.org/packages/source/t/toolz/toolz-0.6.0.tar.gz
   md5: 779bd5844a223c9f0be7e7ea03cc02b1
 

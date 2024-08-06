@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import setuptools
+import distutils
 
 if __name__ == "__main__":
-    setuptools.setup()
+    distutils.core.setup()

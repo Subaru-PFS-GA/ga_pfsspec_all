@@ -9,44 +9,53 @@
 
 # ### Package constants
 
-PACKAGE_NAME = 'pfsspec-{name}'
-PACKAGE_PATH = './modules/{name}'
-PACKAGE_URL = 'https://github.com/Subaru-PFS-GA/ga_pfsspec_{name}'
-PACKAGE_NAMESPACE = 'pfs/ga/pfsspec/{name}'
-PACKAGE_ASSETS_FOLDER = '../../assets/build'
-PACKAGE_SOURCE_FOLDER = './python'
-PACKAGE_COMMAND_PREFIX = 'pfsspec'
-PACKAGE_DEPENDENCIES = [
-    ['tqdm', '>=4.42.1'],
-    ['numpy', '>=1.18.5'],
-    ['pandas', '>=1.0.1'],
-    ['h5py', '>=2.10.0'],
-    ['matplotlib', '>=3.1.3'],
-    ['scipy', '>=1.5.3'],
+MODULE_NAME = 'pfsspec-{name}'
+MODULE_PATH = './modules/{name}'       
+MODULE_URL = 'https://github.com/Subaru-PFS-GA/ga_pfsspec_{name}'
+MODULE_NAMESPACE = 'pfs/ga/pfsspec/{name}'
+MODULE_SOURCE_FOLDER = './modules/{name}/python'
+MODULE_ENTRYPOINT_PREFIX = 'pfsspec'
+MODULE_DEPENDENCIES = [
+    ['python', '>=3.10'],
+    ['tqdm', '>=4'],
+    ['numpy', '>=1.24'],
+    ['pandas', '>=1.5'],
+    ['h5py', '>=3.8'],
+    ['matplotlib', '>=3.7'],
+    ['scipy', '>=1.10'],
     ['pyyaml', '>=6.0']
 ]
 
-PACKAGES = {
+# Directory to install additional conda packages required for conda-build
+CONDA_PACKAGE_FOLDER = './build/pkgs'
+# Directory for conda-build recipes, relative to the module
+CONDA_RECIPE_FOLDER = './recipe'
+# Output directory for conda-build
+BUILD_OUTPUT_FOLDER = './build/modules'
+# Location of the assets folder
+BUILD_ASSETS_FOLDER = './assets/build'
+
+MODULES = {
     'core': {
         'description': 'Core functionality for the PFSSPEC packages.',
-        'dependencies': PACKAGE_DEPENDENCIES,
+        'dependencies': MODULE_DEPENDENCIES,
     },
     'survey': {
         'description': 'Survey data IO utilities for the PFSSPEC packages.',
-        'dependencies': PACKAGE_DEPENDENCIES,
+        'dependencies': MODULE_DEPENDENCIES,
     },
     'stellar': {
         'description': 'Stellar models and utilities for the PFSSPEC packages.',
-        'dependencies': PACKAGE_DEPENDENCIES,
+        'dependencies': MODULE_DEPENDENCIES,
     },
     'sim': {
         'description': 'Spectrum simulation library.',
-        'dependencies': PACKAGE_DEPENDENCIES,
+        'dependencies': MODULE_DEPENDENCIES,
     },
     'learn': {
         'description': 'Machine learning utilities.',
-        'dependencies': PACKAGE_DEPENDENCIES + [
-            ['tensorflow', '==2.4.1'],
+        'dependencies': MODULE_DEPENDENCIES + [
+            ['tensorflow', '==2.11'],
         ],
     }
 }
@@ -67,8 +76,11 @@ PARSER_COMMAND = 'command'
 COMMAND_DISCOVER = 'discover'
 COMMAND_CONFIGURE = 'configure'
 COMMAND_CLEAN = 'clean'
+COMMAND_PYTHON_BUILD = 'python-build'
 COMMAND_CONDA_BUILD = 'conda-build'
+COMMAND_PYTHON_INSTALL = 'python-install'
 COMMAND_PIP_INSTALL = 'pip-install'
+COMMAND_CONDA_INSTALL = 'conda-install'
 
 ARG_NEXT_VERSION = '--next-version'
 ARG_BUILD_NUMBER = '--build-number'
@@ -77,6 +89,19 @@ ARG_PACKAGE_FOLDER = '--package-folder'
 ARG_OUTPUT_FOLDER = '--output-folder'
 
 ENV_CONDA_PKGS_DIRS = 'CONDA_PKGS_DIRS'
+
+dirstack = []
+
+def handle_exception(ex, continue_on_error=False):
+    """
+    Handle runtime exceptions. If continue_on_error is True, log the exception
+    and continue execution. Otherwise, log the exception and exit the script by
+    rethrowing the exception.
+    """
+
+    logging.error(ex)
+    if not continue_on_error:
+        raise ex
 
 def create_parser():
     """
@@ -104,6 +129,9 @@ def create_parser():
     pp.append(p)
     p.add_argument(ARG_PACKAGE_FOLDER, type=str, help='Override package folder.')
     p.add_argument(ARG_OUTPUT_FOLDER, type=str, help='Override output folder.')
+
+    p = sps.add_parser(COMMAND_PYTHON_BUILD)
+    pp.append(p)
 
     p = sps.add_parser(COMMAND_CONDA_BUILD)
     pp.append(p)
@@ -188,13 +216,13 @@ def shell(command):
     with os.popen(command) as p:
         return p.read()
 
-def run(command):
+def run(command, env=None):
     """
     Execute a program asynchronously.
     """
 
     logging.info('Running command `{}`'.format(command))
-    subprocess.run(command.split(' '))
+    subprocess.run(command.split(' '), env=env)
 
 def git_create_tag(tag, message):
     """
@@ -257,35 +285,6 @@ def format_version(*version):
 
     return '.'.join([ str(i) for i in version ])
 
-def get_versions(args, unknown_args):
-    """
-    Return the most recent git tag and the next version number based on the number
-    of commits since the last tag which will be the build number.
-    """
-
-    tag = git_get_current_tag()
-    version = split_version(tag)
-    build = git_get_commits_since(*version[:2], 0)
-    
-    if git_is_dirty():
-        build += 1
-        logging.info(f'Git repo is dirty, bumping build number by one to {build}.')
-
-    # Override from args
-    build = get_arg(args, ARG_BUILD_NUMBER, build)
-
-    # Override from args
-    if is_arg(args, ARG_NEXT_VERSION):
-        next_version = split_version(get_arg(args, ARG_NEXT_VERSION))
-    else:
-        next_version = version[:2] + (build,)
-    
-    logging.info(f'Current version: {tag} (from last git tag)')
-    logging.info(f'Next version: {format_tag(*next_version)}')
-    logging.info(f'Build number: {build}')
-
-    return tag, next_version, build
-
 def cp(input_file, output_file):
     """
     Copy a file.
@@ -306,26 +305,57 @@ def mkdir(dir):
         os.makedirs(dir, exist_ok=True)
         logging.info("Created directory `{}`".format(dir))
     else:
-        logging.info("Found existing directory `{}`".format(dir))
+        logging.info("Directory `{}` already exists".format(dir))
 
-def chdir(dir):
+def chdir(dir, continue_on_error=False):
     """
     Change the current working directory.
     """
 
-    os.chdir(dir)
-    logging.info("Changed working directory to `{}`".format(dir))
+    try:
+        dir = os.path.abspath(dir)
+        cwd = os.getcwd()
+        os.chdir(dir)
+        dirstack.append(cwd)
+        logging.info(f"Changed working directory to `{dir}`")
+    except:
+        msg = f"Failed to change working directory to `{dir}`."
+        if continue_on_error:
+            logging.error(msg)
+        else:
+            raise RuntimeError(msg)
+        
+def popdir(continue_on_error=False):
+    """
+    Restore the previous working directory.
+    """
 
-def rmdir(dir):
+    try:
+        cwd = dirstack.pop()
+        os.chdir(cwd)
+        logging.info(f"Changed working directory to `{cwd}`")
+    except:
+        msg = f"Failed to change working directory."
+        if continue_on_error:
+            logging.error(msg)
+        else:
+            raise RuntimeError(msg)
+
+def rmdir(dir, continue_on_error=True):
     """
     Delete a directory recursively.
     """
 
     try:
+        dir = os.path.abspath(dir)
         shutil.rmtree(dir)
-        logging.info("Removed directory `{}`".format(dir))
+        logging.info(f"Removed directory `{dir}`")
     except:
-        logging.info("Failed to remove directory `{}`".format(dir))
+        msg = f"Failed to remove directory `{dir}`."
+        if continue_on_error:
+            logging.error(msg)
+        else:
+            raise RuntimeError(msg)
 
 def sed(patterns, input_file, output_file):
     """
@@ -410,8 +440,12 @@ class PackageBuilder():
         The Python namespace of the package
     assets_folder: str
         The assets folder for setup template files
+    package_folder: str
+        Conda package folder
+    output_folder: str
+        The output folder for the build
     source_folder: str
-        The Python source folder of the package, relative to the path
+        The Python source folder of the package, relative to `path`
     command_prefix: str
         The command prefix for console scripts
     dependencies: list
@@ -426,6 +460,8 @@ class PackageBuilder():
                  url=None,
                  namespace=None,
                  assets_folder=None,
+                 package_folder=None,
+                 output_folder=None,
                  source_folder=None,
                  command_prefix=None,
                  dependencies=None,
@@ -436,20 +472,58 @@ class PackageBuilder():
         self.url = url
         self.namespace = namespace
         self.assets_folder = assets_folder
+        self.package_folder = package_folder
+        self.output_folder = output_folder
         self.source_folder = source_folder
         self.command_prefix = command_prefix
         self.dependencies = dependencies
         self.description = description
 
+    def get_versions(self, args, unknown_args):
+        """
+        Return the most recent git tag and the next version number based on the number
+        of commits since the last tag which will be the build number.
+        """
+
+        chdir(self.path)
+
+        tag = git_get_current_tag()
+        version = split_version(tag)
+        build = git_get_commits_since(*version[:2], 0)
+        
+        if git_is_dirty():
+            build += 1
+            logging.info(f'Git repo is dirty, bumping build number by one to {build}.')
+
+        # Override from args
+        build = get_arg(args, ARG_BUILD_NUMBER, build)
+
+        # Override from args
+        if is_arg(args, ARG_NEXT_VERSION):
+            next_version = split_version(get_arg(args, ARG_NEXT_VERSION))
+        else:
+            next_version = version[:2] + (build,)
+        
+        logging.info(f'Current version: {tag} (from last git tag)')
+        logging.info(f'Next version: {format_tag(*next_version)}')
+        logging.info(f'Build number: {build}')
+
+        popdir()
+
+        return tag, next_version, build
+
     def get_excludes(self):
         """
-        Generate a list of excluded packages (namespace directories).
+        Generate a list of excludes. This will be used in [options.packages.find]
+        
+        These include namespace directories (where we want to avoid getting any __init__.py
+        files getting into the final packages), as well as unit tests.
         """
 
-        excl = [ 'test' ]
+        excl = [ 'test*' ]
 
         # Generate a list of excluded packages (namespace directories)
-        parts = PACKAGE_NAMESPACE.split('/')[:-1]
+        parts = MODULE_NAMESPACE.split('/')[:-1]
         for i in range(len(parts)):
             excl.append('/'.join(parts[:i + 1]))
 
@@ -463,6 +537,7 @@ class PackageBuilder():
         nbs = []
         for fn in glob.glob(os.path.join(self.source_folder, self.namespace, '**/*.ipynb')):
             nbs.append(os.path.relpath(fn, '.'))
+
         return nbs
 
     def find_entrypoints(self):
@@ -471,7 +546,7 @@ class PackageBuilder():
         """
 
         entrypoints = []
-        for fn in glob.glob(os.path.join(self.source_folder, self.namespace, 'scripts/*.py')):
+        for fn in glob.glob(os.path.join(self.path, self.source_folder, self.namespace, 'scripts/*.py')):
             with open(fn, encoding="utf-8") as f:
                 if f.readline().startswith("#!/usr/bin/env python3"):
                     cls = os.path.splitext(os.path.split(fn)[1])[0]
@@ -492,11 +567,12 @@ class PackageBuilder():
         Generate the setup configuration files for the package.
         """
 
-        logging.info('Generating setup configuration files.')
-
+        src = os.path.relpath(self.source_folder, self.path)
         excl = self.get_excludes()
         nbs = self.find_notebooks()
         cmd = self.find_entrypoints()
+
+        logging.info('Generating setup configuration files.')
 
         patterns = (
             ('%%package_name%%', self.name),
@@ -504,6 +580,7 @@ class PackageBuilder():
             ('%%package_description%%', self.description),
             ('%%version%%', format_version(*version)),
             ('%%build%%', str(build)),
+            ('%%package_dir_cfg%%', f'{src}'),
             ('%%excludes_cfg%%', format_excludes_cfg(excl)),
             ('%%data_files%%', format_includes_manifest_in(nbs)),
             ('%%requirements_txt%%', format_dependencies(self.dependencies)),
@@ -513,44 +590,45 @@ class PackageBuilder():
             ('%%console_scripts_cfg%%', format_console_scripts_cfg(cmd)),
         )
         
-        sed(patterns, 
-            os.path.join(self.assets_folder, '_version.py'),
-            os.path.join(self.source_folder, self.namespace, '_version.py'))
-        logging.info('Generated _version.py')
+        fin = os.path.join(self.assets_folder, '_version.py')
+        fout = os.path.join(self.source_folder, self.namespace, '_version.py')
+        sed(patterns, fin, fout)
+        logging.info(f'Generated {fout}')
 
-        sed(patterns,
-            os.path.join(self.assets_folder, '_meta.yaml'),
-            './recipe/meta.yaml')
-        logging.info('Generated meta.yaml')
+        fin = os.path.join(self.assets_folder, '_meta.yaml')
+        fout = os.path.join(self.path, CONDA_RECIPE_FOLDER, 'meta.yaml')
+        sed(patterns, fin, fout)
+        logging.info(f'Generated {fout}')
 
-        cp(os.path.join(self.assets_folder, '_conda_build_config.yaml'),
-           './recipe/conda_build_config.yaml')
-        logging.info('Copied conda_build_config.yaml')
+        fin = os.path.join(self.assets_folder, '_conda_build_config.yaml')
+        fout = os.path.join(self.path, CONDA_RECIPE_FOLDER, 'conda_build_config.yaml')
+        cp(fin, fout)
+        logging.info(f'Copied {fout}')
 
-        sed(patterns,
-            os.path.join(self.assets_folder, '_setup.cfg'),
-            './setup.cfg')
-        logging.info('Generated setup.cfg')
+        fin = os.path.join(self.assets_folder, '_setup.cfg')
+        fout = os.path.join(self.path, 'setup.cfg')
+        sed(patterns, fin, fout)
+        logging.info(f'Generated {fout}')
 
-        sed(patterns,
-            os.path.join(self.assets_folder, '_setup.py'),
-            './setup.py')
-        logging.info('Generated setup.py')
+        fin = os.path.join(self.assets_folder, '_setup.py')
+        fout = os.path.join(self.path, 'setup.py')
+        sed(patterns, fin, fout)
+        logging.info(f'Generated {fout}')
 
-        sed(patterns,
-            os.path.join(self.assets_folder, '_requirements.txt'),
-            './requirements.txt')
-        logging.info('Copied requirements.txt')
+        fin = os.path.join(self.assets_folder, '_requirements.txt')
+        fout = os.path.join(self.path, 'requirements.txt')
+        sed(patterns, fin, fout)
+        logging.info(f'Copied {fout}')
 
-        sed(patterns,
-            os.path.join(self.assets_folder, '_MANIFEST.in'),
-            './MANIFEST.in')
-        logging.info('Generated MANIFEST.in')
+        fin = os.path.join(self.assets_folder, '_MANIFEST.in')
+        fout = os.path.join(self.path, 'MANIFEST.in')
+        sed(patterns, fin, fout)
+        logging.info(f'Generated {fout}')
 
     def discover(self, args, unknown_args):
         logging.info(f'Executing setup command `discover` for package `{self.name}`.')
 
-        get_versions(args, unknown_args)
+        self.get_versions(args, unknown_args)
         self.get_excludes()
         self.find_notebooks()
         self.find_entrypoints()
@@ -558,83 +636,126 @@ class PackageBuilder():
     def configure(self, args, unknown_args):
         logging.info(f'Executing setup command `configure` for package `{self.name}`.')
 
-        tag, next_version, build = get_versions(args, unknown_args)
+        tag, next_version, build = self.get_versions(args, unknown_args)
         self.generate_config(next_version, build)
 
     def clean(self, args, unknown_args):
         logging.info(f'Executing setup command `clean` for package {self.name}.')
 
-        pkgs_folder = get_arg(args, ARG_PACKAGE_FOLDER, [get_env(ENV_CONDA_PKGS_DIRS), './build/pkgs'])
-        output_folder = get_arg(args, ARG_OUTPUT_FOLDER, f'./build/{PACKAGE_NAME}')
+        pkgs_folder = get_arg(args, ARG_PACKAGE_FOLDER, [get_env(ENV_CONDA_PKGS_DIRS), CONDA_PACKAGE_FOLDER])
+        output_folder = get_arg(args, ARG_OUTPUT_FOLDER, BUILD_OUTPUT_FOLDER.format(name=self.name))
 
-        rmdir(pkgs_folder)
-        rmdir(output_folder)
+        chdir(self.path)
+
         rmdir('./.eggs')
-        rmdir(f'./python/{PACKAGE_NAME.replace("-", "_")}.egg-info')
+        rmdir(f'./python/{self.name.replace("-", "_")}.egg-info')
         rmdir('./build')
         rmdir('./dist')
-        rmdir('./temp')
-        
+
+        popdir()
+
+        # rmdir(pkgs_folder)
+        # rmdir(output_folder)
+
+    def python_build(self, args, unknown_args):
+        logging.info(f'Executing setup command `python setup.py build` for package {self.name}.')
+
+        chdir(self.path)
+
+        cmd = f'python setup.py build -v' + ' '.join(unknown_args)
+        run(cmd)
+
+        popdir()
+
     def conda_build(self, args, unknown_args):
         logging.info(f'Executing setup command `conda-build` for package {self.name}.')
 
-        tag, next_version, build = get_versions(args, unknown_args)
-
-        package_folder = get_arg(args, ARG_PACKAGE_FOLDER, [get_env(ENV_CONDA_PKGS_DIRS), './build/pkgs'])
-        output_folder = get_arg(args, ARG_OUTPUT_FOLDER, f'./build/{PACKAGE_NAME}')
-
-        self.generate_config(next_version, build)
+        package_folder = get_arg(args, ARG_PACKAGE_FOLDER, [self.package_folder, get_env(ENV_CONDA_PKGS_DIRS)])
+        output_folder = get_arg(args, ARG_OUTPUT_FOLDER, self.output_folder)
 
         mkdir(package_folder)
         mkdir(output_folder)
 
-        set_env(ENV_CONDA_PKGS_DIRS, package_folder)
-        cmd = f'conda build {ARG_OUTPUT_FOLDER} {output_folder} ' + ' '.join(unknown_args)
+        chdir(self.path)
+
+        env = os.environ.copy()
+        env[ENV_CONDA_PKGS_DIRS] = package_folder
+
+        args = ' '.join(unknown_args)
+        cmd = f'conda build --output-folder {output_folder} {args} {CONDA_RECIPE_FOLDER}'
+        run(cmd, env=env)
+
+        popdir()
+
+    def python_install(self, args, unknown_args):
+        logging.info(f'Executing setup command `python setup.py install` for package {self.name}.')
+
+        chdir(self.path)
+
+        cmd = f'python setup.py install -v' + ' '.join(unknown_args)
         run(cmd)
+
+        popdir()
+
+    def conda_install(self, args, unknown_args):
+        logging.info(f'Executing setup command `conda install` for package {self.name}.')
+
+        package_folder = get_arg(args, ARG_PACKAGE_FOLDER, [self.package_folder, get_env(ENV_CONDA_PKGS_DIRS)])
+        output_folder = get_arg(args, ARG_OUTPUT_FOLDER, self.output_folder)
+
+        chdir(self.path)
+
+        set_env(ENV_CONDA_PKGS_DIRS, package_folder)
+        cmd = f'conda install --use-local {output_folder} ' + ' '.join(unknown_args)
+        run(cmd)
+
+        popdir()
 
 def main():
     logging.basicConfig(level=logging.INFO)
-
-    cwd = os.getcwd()
 
     parser = create_parser()
     args, unknown_args = parser.parse_known_args()
     args = args.__dict__
 
     # List of packages to process, defaults to all
-    packages = get_arg(args, ARG_PACKAGE, [ PACKAGES.keys() ])
+    packages = get_arg(args, ARG_PACKAGE, [ MODULES.keys() ])
 
-    for p in packages:
-        pp = PackageBuilder(
-            name=PACKAGE_NAME.format(name=p),
-            path=PACKAGE_PATH.format(name=p),
-            url=PACKAGE_URL.format(name=p),
-            namespace=PACKAGE_NAMESPACE.format(name=p),
-            assets_folder=PACKAGE_ASSETS_FOLDER,
-            source_folder=PACKAGE_SOURCE_FOLDER,
-            command_prefix=PACKAGE_COMMAND_PREFIX,
-            dependencies=PACKAGES[p]['dependencies'],
-            description=PACKAGES[p]['description']
-        )
+    try:
+        for p in packages:
+            pp = PackageBuilder(
+                name=MODULE_NAME.format(name=p),
+                path=os.path.abspath(MODULE_PATH.format(name=p)),
+                url=MODULE_URL.format(name=p),
+                namespace=MODULE_NAMESPACE.format(name=p),
+                assets_folder=os.path.abspath(BUILD_ASSETS_FOLDER),
+                package_folder=os.path.abspath(CONDA_PACKAGE_FOLDER),
+                output_folder=os.path.abspath(BUILD_OUTPUT_FOLDER.format(name=p)),
+                source_folder=os.path.abspath(MODULE_SOURCE_FOLDER.format(name=p)),
+                command_prefix=MODULE_ENTRYPOINT_PREFIX,
+                dependencies=MODULES[p]['dependencies'],
+                description=MODULES[p]['description']
+            )
 
-        logging.info(f'Processing package `{pp.name}`.')
+            logging.info(f'Processing package `{pp.name}`.')
 
-        chdir(pp.path)
-
-        if args[PARSER_COMMAND] == COMMAND_DISCOVER:
-            pp.discover(args, unknown_args)
-        elif args[PARSER_COMMAND] == COMMAND_CONFIGURE:
-            pp.configure(args, unknown_args)
-        elif args[PARSER_COMMAND] == COMMAND_CLEAN:
-            pp.clean(args, unknown_args)
-        elif args[PARSER_COMMAND] == COMMAND_CONDA_BUILD:
-            pp.conda_build(args, unknown_args)
-        elif args[PARSER_COMMAND] == COMMAND_PIP_INSTALL:
-            raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-        
-        chdir(cwd)
+            if args[PARSER_COMMAND] == COMMAND_DISCOVER:
+                pp.discover(args, unknown_args)
+            elif args[PARSER_COMMAND] == COMMAND_CONFIGURE:
+                pp.configure(args, unknown_args)
+            elif args[PARSER_COMMAND] == COMMAND_CLEAN:
+                pp.clean(args, unknown_args)
+            elif args[PARSER_COMMAND] == COMMAND_PYTHON_BUILD:
+                pp.python_build(args, unknown_args)
+            elif args[PARSER_COMMAND] == COMMAND_CONDA_BUILD:
+                pp.conda_build(args, unknown_args)
+            elif args[PARSER_COMMAND] == COMMAND_PIP_INSTALL:
+                raise NotImplementedError()
+            else:
+                raise NotImplementedError()
+            
+    except Exception as ex:
+        handle_exception(ex, continue_on_error=False)
 
 if __name__ == "__main__":
     main()
