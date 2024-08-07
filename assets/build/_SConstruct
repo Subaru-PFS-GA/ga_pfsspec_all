@@ -1,0 +1,3 @@
+# -*- python -*-
+from lsst.sconsUtils import scripts
+scripts.BasicSConstruct("%%package_name%%", versionModuleName="%%version_file%%", disableCc=True)
