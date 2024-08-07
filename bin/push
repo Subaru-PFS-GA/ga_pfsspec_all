@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Push all submodules and the main module to all remotes
+# Include all branches and tags
+
+function list_remotes() {
+  git remote
+}
+
+function list_submodules() {
+  git submodule foreach --recursive --quiet 'echo $sm_path'
+}
+
+for m in `list_submodules`; do
+    for remote in `list_remotes`; do
+        echo Pushing submodule $m to remote $remote
+        pushd $m > /dev/null
+        git push $remote --all
+        git push $remote --tags
+        popd > /dev/null
+    done
+done
+
+for remote in `list_remotes`; do
+    echo Pushing main module to remote $remote
+    git push $remote --all
+    git push $remote --tags
+done
