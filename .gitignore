@@ -8,7 +8,13 @@ envs
 # Ignore all submodule symlinks
 configs/
 python/
-docs/
+docs/core
+docs/learn
+docs/sim
+docs/stellar
+docs/survey
+docs/ws
+docs/wsclient
 nb/
 scripts/
 
