@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Check out all submodules to the same branch
+
+function list_submodules() {
+  git submodule foreach --recursive --quiet 'echo $sm_path'
+}
+
+for m in `list_submodules`; do
+  echo Pulling submodule $m from upstream
+  pushd $m > /dev/null
+  git pull
+  popd > /dev/null
+done
