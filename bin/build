@@ -556,8 +556,10 @@ class PackageBuilder():
                     cls = os.path.splitext(os.path.split(fn)[1])[0]
                     cmd = cls.replace('_', '')
                     prefix = self.command_prefix
+                    if prefix is not None and prefix != '':
+                        prefix += '-'
                     namespace = self.namespace.replace('/', '.')
-                    entrypoints.append(f'{prefix}-{cmd} = {namespace}.scripts.{cls}:main')
+                    entrypoints.append(f'{prefix}{cmd} = {namespace}.scripts.{cls}:main')
 
                     logging.info('Found entrypoint `{}`.'.format(cls))
 
