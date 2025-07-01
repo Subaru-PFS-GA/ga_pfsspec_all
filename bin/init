@@ -2,13 +2,13 @@
 
 # Verify if file is being sourced
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "The init script must be sourced!"
-    exit
+  echo "The init script must be sourced!"
+  exit
 fi
 
 if [[ -f "~/.bashrc" ]]; then
-    echo "Sourcing .bashrc"
-    source ~/.bashrc
+  echo "Sourcing .bashrc"
+  source ~/.bashrc
 fi
 
 # Parse arguments
@@ -18,49 +18,119 @@ PFSSPEC_ENV="default"
 INIT_GIT_KEY="0"
 
 while (( "$#" )); do
-    case "$1" in
-      -e|--env)
-        PFSSPEC_ENV="$2"
-        shift 2
-        ;;
-      -g|--init-git)
-        INIT_GIT_KEY="0"
-        shift
-        ;;
-      --no-init-git)
-        INIT_GIT_KEY="0"
-        shift
-        ;;
-      --) # end argument parsing
-        shift
-        break
-        ;;
-      *) # preserve all other arguments
-        PARAMS="$PARAMS $1"
-        shift
-        ;;
-    esac
+  case "$1" in
+    -e|--env)
+      PFSSPEC_ENV="$2"
+      shift 2
+      ;;
+    -g|--init-git)
+      INIT_GIT_KEY="0"
+      shift
+      ;;
+    --no-init-git)
+      INIT_GIT_KEY="0"
+      shift
+      ;;
+    --) # end argument parsing
+      shift
+      break
+      ;;
+    *) # preserve all other arguments
+      PARAMS="$PARAMS $1"
+      shift
+      ;;
+  esac
 done
 
 # Verify / create configuration symlinks
 
 if [[ ! -L configs ]]; then
-    echo "Creating symlink to configurations"
-    ln -s modules/config/configs configs
+  echo "Creating symlink to configurations"
+  ln -s modules/config/configs configs
 fi
+
+# By default, do not use the LSST stack but this can be overridden
+# from the environment config file
+
+PFSSPEC_LSST="0"
 
 # Source environment configs
 
 if [[ -f "./configs/envs/$PFSSPEC_ENV.sh" ]]; then
-    echo "Sourcing environment file $PFSSPEC_ENV"
-    source "./configs/envs/$PFSSPEC_ENV.sh"
+  echo "Sourcing environment file $PFSSPEC_ENV"
+  source "./configs/envs/$PFSSPEC_ENV.sh"
 else
-    ech "Environment file for $PFSSPEC_ENV not found. "
-    exit 1
+  echo "Environment file for $PFSSPEC_ENV not found. "
+  exit 1
 fi
 
+# Add default modules to PFSSPEC_MODULES
+
+export PFSSPEC_MODULES="pfsspec:${PFSSPEC_ROOT}:python
+pfsspec-test:${PFSSPEC_ROOT}:test
+${PFSSPEC_MODULES}"
+
+# Construct the PYTHONPATH from the PFSSPEC_MODULES variable
+# The modules are separated by spaces, and each module consists of
+# a name, a path and a relative path to the python directory separated by colons.
+echo "Setting up PYTHONPATH from development modules"
+PFSSPEC_PYTHONPATH=""
+for module in $PFSSPEC_MODULES; do
+  mod_name=$(echo "$module" | cut -d':' -f1)
+  mod_path=$(echo "$module" | cut -d':' -f2)
+  mod_dir=$(echo "$module" | cut -d':' -f3)
+  PFSSPEC_PYTHONPATH="${PFSSPEC_PYTHONPATH}:${mod_path}/${mod_dir}"
+  echo "  added ${mod_name} to PYTHONPATH"
+done
+
+# Save PATH from the environment config file, because this should
+# preceed the PATH set by conda environment activation.
+PFSSPEC_PATH="$PATH"
+
+# Save PYTHONPATH from the environment config file, because this should
+# preceed the PYTHONPATH set by conda environment activation. Conda would
+# put it at the end of the PYTHONPATH, which is not what we want.
+PFSSPEC_PYTHONPATH="$PFSSPEC_PYTHONPATH:$PYTHONPATH"
+unset PYTHONPATH
+
+# Set up the conda environment
 echo "Activating conda environment $PFSSPEC_CONDAENV"
 source "$PFSSPEC_CONDAPATH/bin/activate" "$PFSSPEC_CONDAENV"
+
+# When working with the LSST stack, create the eups package for each
+# development module.
+if [[ "$PFSSPEC_LSST" -eq "1" ]]; then
+  if [[ -n "$PFSSPEC_MODULES" ]]; then
+    echo "Creating up EUPS packages from development modules"
+    for module in $PFSSPEC_MODULES; do
+      mod_name=$(echo "$module" | cut -d':' -f1)
+      mod_path=$(echo "$module" | cut -d':' -f2)
+      mod_python=$(echo "$module" | cut -d':' -f3)
+      
+      # If the module has the ups directory, create the eups package
+      if [[ -d "$mod_path/ups" ]]; then
+        echo "  creating eups package for $mod_name"
+        eups undeclare "$mod_name" dev --force >/dev/null
+        pushd "$mod_path" >/dev/null
+        eups declare "$mod_name" dev -r . --force 2>/dev/null
+        popd >/dev/null
+      fi
+    done
+  fi
+fi
+
+function sanitize_path() {
+  # Remove duplicate entries from a colon-separated path string
+  # Remove leading and trailing colons, and replace multiple colons with a single colon
+  echo "$1" | awk -v RS=: -v ORS=: '!a[$0]++' | sed -e 's/::\+/:/g' -e 's/^://g' -e 's/:$//g'
+}
+
+# Create the new PATH and remove duplicates
+export PATH=$(sanitize_path "$PFSSPEC_PATH:$PATH")
+
+# Create the new PYTHONPATH with gapipe and pfsspec paths at the front
+# Also remove duplicates
+export PYTHONPATH=$(sanitize_path "$PFSSPEC_PYTHONPATH:$PYTHONPATH")
 
 # Verify / create submodule symlinks and git configs
 
@@ -195,15 +265,16 @@ export TF_CPP_MIN_LOG_LEVEL=3
 
 ################################################################################
 
-export PYTHONPATH="$PFSSPEC_ROOT/test:$PFSSPEC_ROOT/python:$PYTHONPATH"
-
 # Generate .env file for vscode python debugging
 cat > .env <<EOF
+PATH="$PATH"
+PYTHONPATH="$PYTHONPATH"
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+LD="$LD"
+
 DISPLAY="$DISPLAY"
 
 CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES"
-
-PYTHONPATH="$PYTHONPATH"
 
 PFSSPEC_ROOT="$PFSSPEC_ROOT"
 PFSSPEC_DATA="$PFSSPEC_DATA"
